@@ -19,7 +19,9 @@
 </head>
 <body class="bg-gray-100">
     <div id="app" class="container mx-auto px-4 py-8">
-        <h1 class="text-4xl font-bold text-center mb-8">Pokemon Gallery</h1>
+    <div class="flex justify-center">
+      <img class=" sm:w-full lg:w-96 mb-10 ml-1.5" src="asset/poke.png" alt="pokemon.png" />
+    </div>
         <div class="mb-4">
             <input v-model="searchQuery" @input="searchPokemon" type="text" placeholder="Search Pokemon" 
                    class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
@@ -34,13 +36,13 @@
         </div>
         <div class="mt-8 text-center">
             <button @click="loadPrevious" 
-                    :disabled="!prevUrl || isLoading"
-                    class="bg-blue-500 text-white px-4 py-2 rounded mr-2 disabled:opacity-50">
+                    :disabled="currentPage === 1 || isLoading"
+                    class="bg-blue-500 text-white px-4 py-2 rounded-lg mr-2 disabled:opacity-50">
                 Previous
             </button>
             <button @click="loadNext" 
-                    :disabled="!nextUrl || isLoading"
-                    class="bg-blue-500 text-white px-4 py-2 rounded disabled:opacity-50">
+                    :disabled="currentPage === totalPages || isLoading"
+                    class="bg-blue-500 text-white px-4 py-2 rounded-lg disabled:opacity-50">
                 Next
             </button>
         </div>
@@ -53,23 +55,24 @@
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                         </svg>
-                    </button>
-                                        <h2 class="text-2xl font-bold mb-4 capitalize">{{ selectedPokemon.name }}</h2>
+                                    </button>
+                    <h2 class="text-2xl font-bold mb-4 capitalize">{{ selectedPokemon.name }}</h2>
                     <div class="flex justify-center space-x-4 mb-4">
                         <div class="text-center relative">
-                            <img :src="selectedPokemon.forms[0].image" :alt="selectedPokemon.forms[0].name" 
+                            <img :src="selectedPokemon.image" :alt="selectedPokemon.name" 
                                  class="w-24 h-24 cursor-pointer"
-                                 @click="showEvolutionDetails(0)">
-                            <p class="mt-1 capitalize">{{ selectedPokemon.forms[0].name }}</p>
+                                 @click="showEvolutionDetails(currentEvolutionIndex)">
+                            <p class="mt-1 capitalize">{{ selectedPokemon.name }}</p>
                             <span v-if="selectedPokemon.forms.length > 1" 
                                   class="absolute top-0 right-0 text-blue-500">➜</span>
                         </div>
                     </div>
-                    <p class="mb-2">Height: {{ selectedPokemon.height }} dm</p>
-                    <p class="mb-4">Weight: {{ selectedPokemon.weight }} hg</p>
+                    <p class="mb-2">Height: {{ convertHeight(selectedPokemon.height) }} cm</p>
+                    <p class="mb-4">Weight: {{ convertWeight(selectedPokemon.weight) }} kg</p>
                     <h3 class="text-xl font-semibold mb-2">Abilities:</h3>
-                    <ul class="list-disc list-inside mb-4">
-                        <li v-for="ability in selectedPokemon.abilities" :key="ability" class="capitalize">{{ ability }}</li>
+<ul class="list-disc list-inside mb-4">
+    <li v-for="ability in selectedPokemon.abilities" :key="ability" class="capitalize">{{ ability }}</li>
+</ul>
                     </ul>
                     <h3 class="text-xl font-semibold mb-2">Stats:</h3>
                     <ul class="space-y-1">
@@ -108,29 +111,39 @@
         setup() {
             const pokemonList = ref([]);
             const allPokemon = ref([]);
-            const nextUrl = ref('');
-            const prevUrl = ref('');
-            const currentUrl = ref('https://pokeapi.co/api/v2/pokemon?limit=1000');
             const isLoading = ref(false);
             const selectedPokemon = ref(null);
             const searchQuery = ref('');
             const currentEvolutionIndex = ref(0);
+            const currentPage = ref(1);
+            const itemsPerPage = 20;
 
-            const fetchAllPokemon = async () => {
+            const convertWeight = (weight) => {
+                const kg = weight / 10;
+                return Number.isInteger(kg) ? kg.toString() : kg.toFixed(1);
+            };
+            const convertHeight = (height) => {
+                const cm = height * 10;
+                return Number.isInteger(cm) ? cm.toString() : cm.toFixed(1);
+            };
+
+            const totalPages = computed(() => Math.ceil(allPokemon.value.length / itemsPerPage));
+
+                        const fetchAllPokemon = async () => {
                 if (isLoading.value) return;
                 isLoading.value = true;
                 try {
-                    const response = await axios.get(currentUrl.value);
+                    const response = await axios.get('https://pokeapi.co/api/v2/pokemon?limit=1000');
                     allPokemon.value = await Promise.all(response.data.results.map(async (pokemon) => {
                         const id = pokemon.url.split('/')[6];
                         return {
                             id,
                             name: pokemon.name,
-                                                        image: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png`,
+                            image: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png`,
                             url: pokemon.url
                         };
                     }));
-                    pokemonList.value = allPokemon.value.slice(0, 20);
+                    updateDisplayedPokemon();
                 } catch (error) {
                     console.error('Error fetching Pokemon:', error);
                 } finally {
@@ -138,14 +151,24 @@
                 }
             };
 
+            const updateDisplayedPokemon = () => {
+                const startIndex = (currentPage.value - 1) * itemsPerPage;
+                const endIndex = startIndex + itemsPerPage;
+                pokemonList.value = allPokemon.value.slice(startIndex, endIndex);
+            };
+
             const loadNext = () => {
-                const currentIndex = allPokemon.value.findIndex(p => p.id === pokemonList.value[pokemonList.value.length - 1].id);
-                pokemonList.value = allPokemon.value.slice(currentIndex + 1, currentIndex + 21);
+                if (currentPage.value < totalPages.value) {
+                    currentPage.value++;
+                    updateDisplayedPokemon();
+                }
             };
 
             const loadPrevious = () => {
-                const currentIndex = allPokemon.value.findIndex(p => p.id === pokemonList.value[0].id);
-                pokemonList.value = allPokemon.value.slice(Math.max(0, currentIndex - 20), currentIndex);
+                if (currentPage.value > 1) {
+                    currentPage.value--;
+                    updateDisplayedPokemon();
+                }
             };
 
             const getEvolutionForms = async (chain) => {
@@ -185,6 +208,7 @@
                     selectedPokemon.value = {
                         name: data.name,
                         forms: forms,
+                        image: data.sprites.front_default,
                         height: data.height,
                         weight: data.weight,
                         abilities: data.abilities.map(a => a.ability.name),
@@ -201,19 +225,33 @@
                 }
             };
 
-            const showEvolutionDetails = (index) => {
-                currentEvolutionIndex.value = index;
-                const form = selectedPokemon.value.forms[index];
-                selectedPokemon.value = {
-                    ...selectedPokemon.value,
-                    name: form.name,
-                    evolutionInfo: form.evolutionDetails
-                        ? `Evolves at level ${form.evolutionDetails.min_level || 'unknown'}`
-                        : 'Base form'
-                };
-            };
+                        const showEvolutionDetails = async (index) => {
+    currentEvolutionIndex.value = index;
+    const form = selectedPokemon.value.forms[index];
+    try {
+        const response = await axios.get(`https://pokeapi.co/api/v2/pokemon/${form.name}`);
+        const data = response.data;
+        selectedPokemon.value = {
+            name: form.name,
+            forms: selectedPokemon.value.forms,
+            image: data.sprites.front_default,
+            height: data.height,
+            weight: data.weight,
+            abilities: data.abilities.map(a => a.ability.name),
+            stats: data.stats.map(s => ({
+                name: s.stat.name,
+                value: s.base_stat
+            })),
+            evolutionInfo: form.evolutionDetails
+                ? `Evolves at level ${form.evolutionDetails.min_level || 'unknown'}`
+                : 'Base form'
+        };
+    } catch (error) {
+        console.error('Error fetching Pokemon details:', error);
+    }
+};
 
-                        const navigateEvolution = (direction) => {
+            const navigateEvolution = (direction) => {
                 if (direction === 'next' && currentEvolutionIndex.value < selectedPokemon.value.forms.length - 1) {
                     currentEvolutionIndex.value++;
                 } else if (direction === 'prev' && currentEvolutionIndex.value > 0) {
@@ -224,13 +262,14 @@
 
             const searchPokemon = () => {
                 if (searchQuery.value.trim() === '') {
-                    pokemonList.value = allPokemon.value.slice(0, 20);
+                    updateDisplayedPokemon();
                 } else {
                     const query = searchQuery.value.toLowerCase();
                     pokemonList.value = allPokemon.value.filter(pokemon => 
                         pokemon.name.toLowerCase().includes(query)
-                    ).slice(0, 20);
+                    ).slice(0, itemsPerPage);
                 }
+                currentPage.value = 1;
             };
 
             const displayedPokemon = computed(() => {
@@ -240,7 +279,7 @@
                     const query = searchQuery.value.toLowerCase();
                     return allPokemon.value.filter(pokemon => 
                         pokemon.name.toLowerCase().includes(query)
-                    ).slice(0, 20);
+                    ).slice(0, itemsPerPage);
                 }
             });
 
@@ -255,13 +294,13 @@
 
             return {
                 pokemonList,
-                nextUrl,
-                prevUrl,
                 isLoading,
                 selectedPokemon,
                 searchQuery,
                 displayedPokemon,
                 currentEvolutionIndex,
+                currentPage,
+                totalPages,
                 loadNext,
                 loadPrevious,
                 showDetails,
@@ -269,10 +308,12 @@
                 searchPokemon,
                 navigateEvolution,
                 canNavigatePrev,
-                canNavigateNext
+                canNavigateNext,
+                convertWeight,
+                convertHeight
             };
         }
     }).mount('#app');
     </script>
 </body>
-</html>
+                    </html>
