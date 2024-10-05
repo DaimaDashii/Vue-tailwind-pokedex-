@@ -1,0 +1,5 @@
+*.html linguist-detectable=true
+*.html linguist-language=Vue
+*.js linguist-detectable=true
+*.css linguist-detectable=true
+*.css linguist-language=Tailwind CSS
