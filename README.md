@@ -1,5 +1,8 @@
 # [Vue](https://vuejs.org/) && [Tailwind](https://tailwindcss.com) PokeDex Documentation
 
+## Preview Website
+[Goo!!](https://daimadashii.github.io/Vue-tailwind-pokedex-/)
+
 ## Overview
 
 Pokemon Gallery is a web application built using Vue.js and Tailwind CSS that displays a list of Pokemon and their details. The application fetches data from the PokeAPI.
