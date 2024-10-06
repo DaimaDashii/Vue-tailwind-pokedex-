@@ -77,7 +77,7 @@ The application uses [Axios](https://axios-http.com/docs/intro) to make HTTP req
 
 ## Styling
 
-Utilizes [Tailwind]CSS(https://tailwindcss.com) for styling, including grid layout and responsive design
+Utilizes [TailwindCSS](https://tailwindcss.com) for styling, including grid layout and responsive design
 
 ## Usage
 
